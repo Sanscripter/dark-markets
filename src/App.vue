@@ -1,19 +1,34 @@
 <template>
   <div class="app verti items-center-top items-space-around">
-    <SplashScreen/>
+    <SplashScreen v-if="splashScreen" v-on:start="openGameScreen" />
+    <GameScreen v-if="gameScreen"/>
   </div>
 </template>
 
 <script lang="ts">
 import { Component, Vue } from "vue-property-decorator";
-import SplashScreen from "./components/SplashScreen.vue";
+import SplashScreen from "./components/screens/SplashScreen.vue";
+import GameScreen from "./components/screens/GameScreen.vue";
 
 @Component({
   components: {
     SplashScreen,
+    GameScreen,
   }
 })
-export default class App extends Vue {}
+export default class App extends Vue {
+  splashScreen = true;
+  gameScreen = false;
+
+  public openGameScreen(){
+    this.gameScreen = true;
+    this.splashScreen = false;
+  }
+
+  //todo screen manager
+
+
+}
 </script>
 
 <style lang="scss">

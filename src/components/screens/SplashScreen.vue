@@ -5,7 +5,7 @@
 
     <div class="mt-50">
       <label>
-        <input type="radio" class="nes-radio is-dark" name="answer-dark" checked />
+        <input type="radio" class="nes-radio is-dark" name="answer-dark" checked v-on:click="startGame" />
         <span>Start</span>
       </label>
 
@@ -20,8 +20,8 @@
 
 <script lang="ts">
 import { Component, Vue } from "vue-property-decorator";
-import TitleSplash from "./TitleSplash.vue";
-import SubtitleSplash from "./SubtitleSplash.vue";  
+import TitleSplash from "../TitleSplash.vue";
+import SubtitleSplash from "../SubtitleSplash.vue";  
 
 
 @Component({
@@ -30,7 +30,12 @@ import SubtitleSplash from "./SubtitleSplash.vue";
     TitleSplash
   }
 })
-export default class SplashScreen extends Vue {}
+export default class SplashScreen extends Vue {
+
+  startGame(){
+    this.$emit('start')
+  }
+}
 </script>
 
 <style lang="scss">

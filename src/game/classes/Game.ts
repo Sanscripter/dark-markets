@@ -2,6 +2,8 @@ import IPlayer from '../interfaces/IPlayer';
 import ILocation from '../interfaces/ILocation';
 import IWorld from '../interfaces/IWorld';
 
+
+//TODO: dialog mechanic and survival mechanic
 export default class Game {
     constructor(player:IPlayer, world:IWorld){
         this.player = player;
