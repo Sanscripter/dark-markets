@@ -6,15 +6,6 @@
         Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse rutrum est odio, non varius elit porttitor eu. Mauris non odio tempor, imperdiet mi interdum, lacinia arcu. Nullam interdum libero nec volutpat imperdiet. Donec porta maximus metus dapibus ultrices. Suspendisse gravida mauris neque, eget luctus tortor volutpat vel. Proin ut rhoncus arcu, non tincidunt nulla. Suspendisse vulputate, metus eget vehicula porta, nisi neque ornare massa, ac tempus elit libero ut mauris. In hac habitasse platea dictumst. Pellentesque tellus elit, auctor at viverra ut, tempor et lacus. Vestibulum pretium orci est. Proin consectetur, turpis id vulputate mollis, tellus purus tempus tellus, in dignissim velit urna quis justo.
         Maecenas lorem massa, eleifend vel congue sit amet, convallis at nisl. Duis tempus viverra mattis. Donec quis venenatis libero, non iaculis felis. Vestibulum suscipit cursus ligula, vitae lacinia justo. Donec eu dapibus nunc. Donec porta enim libero, eu volutpat libero efficitur vitae. Nam elementum ultricies iaculis.
       </p> -->
-      <div v-for="agent in economy.agents" v-bind:key="agent.name">
-        {{agent.name}} | ${{agent.money}} | Needs: {{agent.need.name}} for {{agent.need.bid}}
-        Inventory:
-        <div v-for="item in agent.inventory.items" v-bind:key="item.name">
-          ->>> {{item.name}} | {{item.quantity}}
-        </div>
-        <br>
-        <br>
-      </div>
       <div class="mt-50">
         <label>
           <input
@@ -32,6 +23,9 @@
           <span>About</span>
         </label>
       </div>
+      
+      </div>
+      
     </div>
   </div>
 </template>

@@ -1,13 +1,18 @@
 import IPlayer from '../interfaces/IPlayer';
 import ILocation from '../interfaces/ILocation';
 import IWorld from '../interfaces/IWorld';
+//@ts-ignore
+import * as Hashes from 'jshashes';
 
+const MD5 = new Hashes.MD5
 
 //TODO: dialog mechanic and survival mechanic
 export default class Economy {
-    agents: Agent[] = [];
-    products: Inventory = new Inventory();
-    wealthCap = 1000;
+    agents: Agent[] = [];  //review
+    availableItems: Item[] = [];
+    self = this;
+    // availableItems: Inventory = new Inventory();
+
 
     listAgentNames = [
         `Torela`,
@@ -17,8 +22,14 @@ export default class Economy {
         `Hellbary`
     ]
 
+    promote: { //something to persist who has what so we don't have to loop through everytime
+        [key: string]: string[]
+    } = {};
+
+
+
     constructor() {
-        this.createProducts();
+        this.createavAilableItems();
         this.createAgents();
     }
 
@@ -28,192 +39,492 @@ export default class Economy {
         console.table(this.agents);
     }
 
-    createProducts() {
+    updatePromote(self: Economy) {
+        return (agent: Agent) => {
+            if (!self.promote[agent.id]) {
+                self.promote[agent.id] = [];
+            }
+            const itemsInPosession = Object.keys(agent.inventory.items);
+            self.promote[agent.id] = itemsInPosession;
+        }
+    }
+
+    createavAilableItems() {
         this.listAgentNames.map((name) => {
             const productName = `${name}bildung`
-            const porductPrice = Math.ceil(this.wealthCap / this.listAgentNames.length * Math.random());
-            const productQty = Math.ceil(1000 * Math.random());
-            const product = new Product(productName, porductPrice, productQty);
-            this.products.add(product);
+            const product = new Item(productName);
+            this.availableItems.push(product);
         });
     }
 
     createAgents() {
         this.listAgentNames.map((name) => {
-            const agent = new Agent(name);
-            agent.setWealth(this.wealthCap);
+            let agent = new Agent(name);
+            let money = Math.ceil(Math.random() * 10000)
+            agent.wallet.setFunds(money);
             this.agents.push(agent);
         });
     }
 
     produce() {
-        this.agents.forEach((agent) => agent.determineProduce(this.products.items));
+        this.agents.forEach((agent) => agent.produce(this.availableItems, this.updatePromote(this)));
+    }
+
+    createNeeds() {
+        this.agents.forEach((agent) => agent.createNeeds(this.availableItems));
     }
 
     trade() {
         this.agents.forEach((agent) => {
-            agent.determineNeed(this.products.items)
-            if (!agent.need) {
-                console.log(`${agent.name} has no needs at the time.`);
-                return;
-            }
-            agent.buy(this.agents);
-            if (agent.need.name) {
-                agent.need.bid += 1;
-                console.log(`${agent.name} bid for ${agent.need.name} just increased to ${agent.need.bid}`);
-            }
+            agent.createNeeds(this.availableItems);
+            let needsIds = Object.keys(agent.needs.items); // how can we prioritize needs?
+            let promotingAgents = Object.keys(this.promote);
+            promotingAgents.forEach((promoting) => {
+                if (promoting === agent.id) {
+                    return;
+                }
+                let canSupply = needsIds.filter(need => (this.promote[promoting].includes(need)));
+                if (!canSupply.length) {
+                    return;
+                }
+                let matchSellerIndex = this.agents.findIndex(match => match.id === promoting);
+
+                canSupply.forEach((suppliable) => {
+                    let demand = agent.needs.getNecessity(suppliable);
+                    let supply = this.agents[matchSellerIndex].offers.getProduct(suppliable);
+                    // console.log(`Demand`, demand)
+                    // console.log(`Supply`, supply)
+                    if (!demand || !supply || demand.getBid() < supply.getAsk()) {
+                        return;
+                    }
+                    supply.setAsk(demand.getBid());
+                    agent.buy(supply, this.updatePromote(this)) // read above.
+                    this.agents[matchSellerIndex].sell(demand, this.updatePromote(this));
+                    console.log(`${agent.name} has bought ${supply.getName()} from ${this.agents[matchSellerIndex].name} for ${demand.getBid()}`)
+                });
+            });
         });
 
     }
 }
 
 class Agent {
+    id: string;
     name: string;
-    money: number = 0;
-    need: ProductNeed = new ProductNeed(new Product());
-    selling?: Product[];
-    inventory: Inventory;
+    wallet: Wallet = new Wallet();
+    inventory: Inventory = new Inventory();
+    offers: Offers = new Offers();
+    needs: Needs = new Needs();
 
-    constructor(name?: string) {
-        this.name = name || ``;
-        this.inventory = new Inventory();
+    constructor(name: string) {
+        this.name = name;
+        this.id = MD5.hex(name);
     }
 
-    buy(market: Agent[]) {
-        console.log(`${this.name} is trying to buy ${this.need.name}...`);
-        let productMatchIndex;
-        const sellerMatchIndex = market.findIndex((seller) => {
-            if (seller.name === this.name) {
+    createNeeds(needPossibilities: Item[]) { //doublecheck
+        let baseItem = needPossibilities[Math.floor(needPossibilities.length * Math.random())];
+        // while(this.inventory.hasItem(baseItem)){
+        //     baseItem = needPossibilities[Math.floor(needPossibilities.length * Math.random())];
+        // }
+        const newNeed = new Necessity(baseItem);
+        newNeed.setBid(Math.ceil(Math.random() * 100)); //doublecheck
+        newNeed.setQuantity(1) // doublecheck
+        this.needs.add(newNeed);
+    }
+
+    produce(productionPosibilities: Item[], callback?: Function) {
+        const productionResult = productionPosibilities[Math.floor(productionPosibilities.length * Math.random())]; //doublecheck
+        productionResult.setQuantity(Math.ceil(Math.random() * 100));
+        // console.log('Produced', productionResult);
+        this.inventory.add(productionResult);
+        this.syncNeeds();
+        this.syncOffers();
+        if (!callback) {
+            return;
+        }
+        callback(this);
+    }
+
+    buy(product: Product, callback?: Function) {
+        this.updateWallet(- product.getAsk());
+        this.addInventory(product.getItem(), callback);
+        this.syncNeeds();
+        this.syncOffers();
+    }
+
+    sell(necessity: Necessity, callback?: Function) {
+        this.removeInventory(necessity.getItem(), callback);
+        this.syncOffers();
+        this.updateWallet(necessity.getBid());
+    }
+
+    addInventory(item: Item, callback?: Function) {
+        this.inventory.add(item);
+        if (!callback) {
+            return;
+        }
+        callback(this);
+    }
+
+    removeInventory(item: Item, callback?: Function) {
+        this.inventory.remove(item);
+        if (!callback) {
+            return;
+        }
+        callback(this);
+    }
+
+    updateWallet(amount: number) {
+        const newFunds = this.wallet.getFunds() + amount;
+        this.wallet.setFunds(newFunds);
+    }
+
+    syncNeeds() { //doublecheck
+        const inventoryIds = Object.keys(this.inventory.items);
+        const needsIds = Object.keys(this.needs.items);
+        const diffRemove = needsIds.filter(item => inventoryIds.includes(item));
+        if (!diffRemove.length) {
+            return;
+        }
+        diffRemove.map((diffItem) => {
+            let item = this.inventory.getItem(diffItem);
+            if (!item) {
                 return;
             }
-            let askReasonable;
-            productMatchIndex = seller.inventory.hasItem(this.need);
-            if (productMatchIndex >= 0) {
-                askReasonable = seller.inventory.items[productMatchIndex].ask <= this.need.bid;
+
+            let necessity = this.needs.hasNecessity(new Necessity(item));
+            if (!necessity) {
+                return;
             }
-            return productMatchIndex >= 0 && askReasonable;
-        });
-        if (productMatchIndex && sellerMatchIndex >= 0) {
-            console.log(`${this.name} found a suitable seller of ${this.need.name} in ${market[sellerMatchIndex].name}...`);
 
-            const acquiredProduct = market[sellerMatchIndex].inventory.items[productMatchIndex];
-            this.money -= this.need.bid;
-            this.inventory.add(acquiredProduct);
-            market[sellerMatchIndex].sell(this.need);
-            console.log(`${acquiredProduct.name} was bought by ${this.name} from ${market[sellerMatchIndex].name} for $${this.need.bid}`);
-            this.need = new ProductNeed(new Product());
+            if (necessity.getQuantity() > item.getQuantity()) {
+                necessity.setQuantity(item.getQuantity());
+            }
+            this.needs.remove(necessity);
+        })
+    }
+
+    syncOffers() { // doublecheck
+        const inventoryIds = Object.keys(this.inventory.items);
+        const offersIds = Object.keys(this.offers.products);
+        const diffAdd = inventoryIds.filter(item => !offersIds.includes(item));
+        if (!diffAdd.length) {
             return;
-        } /// CHECK WHY ITEMS ARE COMING IN NEGATIVE QUANTITIES???
-        console.log(`${this.name} found no suitable seller of ${this.need.name}.`);
+        }
+        diffAdd.map((diffItem) => {
+            let item = this.inventory.getItem(diffItem);
+            if (!item) {
+                return;
+            }
+            let product = new Product(item);
 
+            product.setAsk(this.determineProductAsk(product) + 30); //doublecheck
+            // console.log('adding product',product)
+            this.offers.add(product);
+        })
+
+        const diffRemove = offersIds.filter(item => !inventoryIds.includes(item));
+        if (!diffRemove.length) {
+            return;
+        }
+        diffRemove.map((diffItem) => {
+            let product = this.offers.getProduct(diffItem);
+            if (!product) {
+                return;
+            }
+            this.offers.remove(product);
+        })
     }
 
-    sell(product: ProductNeed) {
-        this.inventory.remove(product);
-        this.money += product.bid;
+    determineProductAsk(product: Product) {
+        return product.getQuantity() * Math.ceil(Math.random() * 10); // doublecheck
     }
 
-    determineProduce(productList?: Product[]) {
-        if (!productList) {
+    determineNecessityBid(necessity: Necessity) {
+        return necessity.getQuantity() * Math.ceil(Math.random() * 1000); // doublecheck
+    }
+
+    determineNecessityScore(necessity: Necessity) {
+        return Math.ceil(1000 * Math.random()); //doublecheck
+    }
+
+    determineNecessityQuantity(necessity: Necessity) {
+        return Math.ceil(necessity.getNeedScore() * Math.random()); //doublecheck
+    }
+}
+
+class Wallet {
+    private funds: number = 0;
+
+    setFunds(newFunds: number) {
+        this.funds = newFunds;
+    }
+
+    getFunds() {
+        return this.funds;
+    }
+}
+
+class Needs {
+    items: {
+        [key: string]: Necessity
+    } = {};
+
+    add(necessity: Necessity) {
+        //If we have to create a new Necessity, we'll return it whole, if it's just stackign quantities, we'll return the qty
+        if (!this.hasNecessity(necessity)) {
+            this.items[necessity.getId()] = necessity;
+            return this.items[necessity.getId()];
+        }
+        //@ts-ignore
+        const newQty = this.items[necessity.getId()].getQuantity() + necessity.getQuantity();
+        this.items[necessity.getId()].setQuantity(newQty);
+        return this.items[necessity.getId()].getQuantity();
+    }
+
+    remove(necessity: Necessity) {
+        //If there is no Necessity, there's nothing to return, otherwise, return qty (even if it is negative??)
+        const currentNecessity = this.hasNecessity(necessity);
+        if (!currentNecessity) {
             return null;
         }
-        const randomizerLimit = productList.length;
-        const indexOfProduct = Math.floor(Math.random() * randomizerLimit);
-        const product = productList[indexOfProduct];
-        product.quantity = 10;
-        this.inventory.add(product);
-        console.log(this.need)
-        console.log(`${this.name} produced ${product.quantity} ${product.name}`);
-        if (product.name === this.need.name && product.quantity >= this.need.quantity) {
-            this.need = new ProductNeed(new Product());
-            console.log(`${this.name} production of ${product.name} was enough to supply its need!`);
 
+        const newQty = this.items[necessity.getId()].getQuantity() - necessity.getQuantity();
+        this.items[necessity.getId()].setQuantity(newQty);
+
+        if (!this.items[necessity.getId()].getQuantity()) {
+            delete this.items[necessity.getId()];
+        }
+
+        return newQty;
+    }
+
+    hasNecessity(necessity: Necessity) {
+        return this.items[necessity.getId()];
+    }
+
+    getNecessity(id: string) {
+        const item = new Item();
+        item.id = id;
+        const necessity = new Necessity(item);
+        return this.hasNecessity(necessity);
+    }
+}
+
+class Necessity {
+    item: Item;
+    needScore: number = 1; //Assuming I'll need this *ACHILLES HEELL*
+    bid: number = 0;
+
+    constructor(item: Item, quantityNeeded?: number) {
+        this.item = item;
+
+        if (quantityNeeded) {
+            this.item.setQuantity(quantityNeeded);
+        } else {
+            this.item.setQuantity(1);
         }
     }
 
-    determineNeed(productList: Product[]) {
-        const randomizerLimit = productList.length;
-        let indexOfProduct = Math.floor(Math.random() * randomizerLimit);
-        while (this.inventory.hasItem(productList[indexOfProduct]) < 0) {
-            indexOfProduct = Math.floor(Math.random() * randomizerLimit);
+    getId() {
+        return this.item.id;
+    }
+
+    getName() {
+        return this.item.name;
+    }
+
+    getItem() {
+        return this.item;
+    }
+
+    setNeedScore(needScore: number) {
+        if (needScore < 1) {
+            return;
         }
-        this.need = new ProductNeed(productList[indexOfProduct]);
-        this.need.bid = this.need.determineBid(this.money - 1);
-        console.log(`${this.name} now needs ${this.need.name}`)
-        return this.need;
+        this.needScore = needScore;
     }
 
-    setWealth(wealthCap: number) {
-        this.money = Math.ceil(Math.random() * wealthCap);
-        console.log(`${this.name} spawns with $${this.money}`)
+    getNeedScore() {
+        return this.needScore;
     }
 
+    setQuantity(quantity: number) {
+        this.item.setQuantity(quantity);
+    }
+
+    getQuantity() {
+        return this.item.getQuantity();
+    }
+
+    setBid(bid: number) {
+        if (bid < 0) {
+            this.bid = 0;
+            return;
+        }
+        this.bid = bid;
+    }
+
+    getBid() {
+        return this.bid;
+    }
+
+}
+
+class Offers {
+    products: {
+        [key: string]: Product
+    } = {};
+
+    constructor() { }
+
+    add(product: Product) {
+        //If we have to create a new product, we'll return it whole, if it's just stackign quantities, we'll return the qty
+        if (!this.hasProduct(product)) {
+            this.products[product.getId()] = product;
+            return this.products[product.getId()];
+        }
+        //@ts-ignore
+        const newQty = this.products[product.getId()].getQuantity() + product.getQuantity();
+        this.products[product.getId()].setQuantity(newQty);
+        return this.products[product.getId()].getQuantity();
+    }
+
+    remove(product: Product) {
+        //If there is no item, there's nothing to return, otherwise, return qty (even if it is negative??)
+        const stockedProduct = this.hasProduct(product)
+        if (!stockedProduct) {
+            return null;
+        }
+
+        const newQty = this.products[product.getId()].getQuantity() - product.getQuantity();
+        this.products[product.getId()].setQuantity(newQty);
+
+        if (!this.products[product.getId()].getQuantity()) {
+            delete this.products[product.getId()];
+        }
+
+        return newQty;
+    }
+
+    hasProduct(product: Product) {
+        return this.products[product.getId()];
+    }
+
+    getProduct(id: string) {
+        const item = new Item();
+        item.id = id;
+        const product = new Product(item);
+        return this.hasProduct(product);
+    }
 
 }
 
 class Product {
-    name: string;
-    ask: number;
-    quantity: number;
-    constructor(name?: string, ask?: number, quantity?: number) {
-        this.name = name || ``;
-        this.ask = ask || 0;
-        this.quantity = quantity || 0;
-    }
-}
-
-class ProductNeed {
-    name: string;
-    bid: number;
-    quantity: number;
-    constructor(product: Product) {
-        this.name = product.name;
-        this.quantity = this.determineQuantity();
-        this.bid = this.determineBid();
+    private item: Item;
+    private ask: number = 0;
+    constructor(item: Item) {
+        this.item = item;
     }
 
-    determineQuantity() {
-        return Math.ceil(Math.random() * 100) + 1;
+    getId() {
+        return this.item.id;
     }
 
-    determineBid(modifier: number = 0) {
-        return Math.ceil(Math.random() * modifier) + 1;
+    getName() {
+        return this.item.name;
+    }
+
+    getItem() {
+        return this.item;
+    }
+
+    setQuantity(quantity: number) {
+        this.item.setQuantity(quantity);
+    }
+
+    getQuantity() {
+        return this.item.getQuantity();
+    }
+
+    setAsk(ask: number) {
+        if (ask < 0) {
+            this.ask = 0;
+            return;
+        }
+        this.ask = ask;
+    }
+
+    getAsk() {
+        return this.ask;
     }
 }
 
 class Inventory {
-    items: Product[] = [];
+    items: {
+        [key: string]: Item
+    } = {};
 
-    add(product: Product) {
-        console.log(`adding product`, product)
-        const existingIndex = this.hasItem(product);
-        if (existingIndex >= 0) {
-            this.items[existingIndex].quantity += product.quantity;
+    add(item: Item) {
+        // console.log(item.getQuantity());
+        //If we have to create a new item, we'll return it whole, if it's just stackign quantities, we'll return the qty
+        if (!this.hasItem(item)) {
+            this.items[item.id] = item;
+            return this.items[item.id];
+        }
+        //@ts-ignore
+        const newQty = this.items[item.id].getQuantity() + item.getQuantity();
+        this.items[item.id].setQuantity(newQty);
+        return this.items[item.id].getQuantity();
+    }
+
+    remove(item: Item) {
+        //If there is no item, there's nothing to return, otherwise, return qty (even if it is negative??)
+        const storedItem = this.hasItem(item)
+        if (!storedItem) {
+            return null;
+        }
+
+        const newQty = this.items[item.id].getQuantity() - item.getQuantity();
+        this.items[item.id].setQuantity(newQty);
+
+        if (!this.items[item.id].getQuantity()) {
+            delete this.items[item.id];
+        }
+
+        return newQty;
+    }
+
+    hasItem(item: Item) {
+        return this.items[item.id];
+    }
+
+    getItem(id: string) {
+        const item = new Item();
+        item.id = id;
+        return this.hasItem(item);
+    }
+}
+
+class Item {
+    id: string;
+    name: string;
+    private quantity: number = 0;
+
+    constructor(name: string = '') {
+        this.name = name;
+        this.id = MD5.hex(name);
+    }
+
+    setQuantity(quantity: number) {
+        if (quantity < 0) {
+            this.quantity = 0;
             return;
         }
-        this.items.push(product);
+        this.quantity = quantity
     }
 
-    remove(product: Product | ProductNeed) {
-        const existingIndex = this.hasItem(product);
-        if (existingIndex <= 0) {
-            console.log(`Somehow, tried to remove a ${product.name} that was not in an inventory.`);
-            return;
-        }
-
-        this.items[existingIndex].quantity -= product.quantity;
-        const difference = this.items[existingIndex].quantity;
-
-        this.cleanup();
-
-        return 0 - difference;
-    }
-
-    hasItem(product: Product | ProductNeed) {
-        return this.items.findIndex((item: Product) => item.name === product.name);
-    }
-
-    cleanup() {
-        this.items = this.items.filter((item) => item.quantity > 0);
+    getQuantity() {
+        return this.quantity;
     }
 }
