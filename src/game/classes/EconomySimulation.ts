@@ -92,8 +92,6 @@ export default class Economy {
                 canSupply.forEach((suppliable) => {
                     let demand = agent.needs.getNecessity(suppliable);
                     let supply = this.agents[matchSellerIndex].offers.getProduct(suppliable);
-                    // console.log(`Demand`, demand)
-                    // console.log(`Supply`, supply)
                     if (!demand || !supply || demand.getBid() < supply.getAsk()) {
                         return;
                     }
@@ -127,15 +125,17 @@ class Agent {
         //     baseItem = needPossibilities[Math.floor(needPossibilities.length * Math.random())];
         // }
         const newNeed = new Necessity(baseItem);
-        newNeed.setBid(Math.ceil(Math.random() * 100)); //doublecheck
-        newNeed.setQuantity(1) // doublecheck
+        newNeed.setBid(Math.ceil(Math.random() * 100) + 1); //doublecheck
+        newNeed.setQuantity(5) // doublecheck
         this.needs.add(newNeed);
     }
 
     produce(productionPosibilities: Item[], callback?: Function) {
         const productionResult = productionPosibilities[Math.floor(productionPosibilities.length * Math.random())]; //doublecheck
-        productionResult.setQuantity(Math.ceil(Math.random() * 100));
-        // console.log('Produced', productionResult);
+        const gennedNumber = Math.ceil(Math.random() * 100) + 1;
+        productionResult.setQuantity(gennedNumber);
+        console.log('Produced', productionResult);
+        console.log(`genned number`, gennedNumber)
         this.inventory.add(productionResult);
         this.syncNeeds();
         this.syncOffers();
@@ -180,6 +180,7 @@ class Agent {
     }
 
     syncNeeds() { //doublecheck
+        console.log(`Syncing needs`)
         const inventoryIds = Object.keys(this.inventory.items);
         const needsIds = Object.keys(this.needs.items);
         const diffRemove = needsIds.filter(item => inventoryIds.includes(item));
@@ -200,6 +201,7 @@ class Agent {
             if (necessity.getQuantity() > item.getQuantity()) {
                 necessity.setQuantity(item.getQuantity());
             }
+            console.log(`Removing necessity`,necessity);
             this.needs.remove(necessity);
         })
     }
@@ -219,7 +221,6 @@ class Agent {
             let product = new Product(item);
 
             product.setAsk(this.determineProductAsk(product) + 30); //doublecheck
-            // console.log('adding product',product)
             this.offers.add(product);
         })
 
@@ -279,23 +280,26 @@ class Needs {
         //@ts-ignore
         const newQty = this.items[necessity.getId()].getQuantity() + necessity.getQuantity();
         this.items[necessity.getId()].setQuantity(newQty);
+        this.cleanup();
         return this.items[necessity.getId()].getQuantity();
     }
 
     remove(necessity: Necessity) {
         //If there is no Necessity, there's nothing to return, otherwise, return qty (even if it is negative??)
         const currentNecessity = this.hasNecessity(necessity);
+        console.log(`current necessity`, currentNecessity);
         if (!currentNecessity) {
             return null;
         }
 
         const newQty = this.items[necessity.getId()].getQuantity() - necessity.getQuantity();
         this.items[necessity.getId()].setQuantity(newQty);
+        console.log(`necessity new quantity`,this.items[necessity.getId()])
 
         if (!this.items[necessity.getId()].getQuantity()) {
             delete this.items[necessity.getId()];
         }
-
+        this.cleanup();
         return newQty;
     }
 
@@ -308,6 +312,17 @@ class Needs {
         item.id = id;
         const necessity = new Necessity(item);
         return this.hasNecessity(necessity);
+    }
+
+    cleanup(){
+        const idList = Object.keys(this.items);
+        idList.forEach((id)=>{
+            let item = this.getNecessity(id);
+            if(item && item.getQuantity()){
+                return;
+            }
+            this.remove(item);
+        })
     }
 }
 
@@ -466,7 +481,6 @@ class Inventory {
     } = {};
 
     add(item: Item) {
-        // console.log(item.getQuantity());
         //If we have to create a new item, we'll return it whole, if it's just stackign quantities, we'll return the qty
         if (!this.hasItem(item)) {
             this.items[item.id] = item;
@@ -475,6 +489,7 @@ class Inventory {
         //@ts-ignore
         const newQty = this.items[item.id].getQuantity() + item.getQuantity();
         this.items[item.id].setQuantity(newQty);
+        this.cleanup();
         return this.items[item.id].getQuantity();
     }
 
@@ -492,6 +507,7 @@ class Inventory {
             delete this.items[item.id];
         }
 
+        this.cleanup();
         return newQty;
     }
 
@@ -503,6 +519,17 @@ class Inventory {
         const item = new Item();
         item.id = id;
         return this.hasItem(item);
+    }
+
+    cleanup(){
+        const idList = Object.keys(this.items);
+        idList.forEach((id)=>{
+            let item = this.getItem(id);
+            if(item && item.getQuantity()){
+                return;
+            }
+            this.remove(item);
+        })
     }
 }
 
@@ -517,7 +544,9 @@ class Item {
     }
 
     setQuantity(quantity: number) {
-        if (quantity < 0) {
+        console.log(`Qty`,quantity)
+        console.log(`Comparison`,100 < 0)
+        if (100 < 0) {
             this.quantity = 0;
             return;
         }
