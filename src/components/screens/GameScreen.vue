@@ -1,19 +1,36 @@
 <template>
   <div class="app verti items-center-top items-space-around text">
-    <DialogBox />
+    <LocationDetails v-if='selectionMade' :location="selectedLocation" @close="closeDetails"/>
+    <DialogBox v-if='!selectionMade' @selectLocation="selectLocationHandler" />
   </div>
 </template>
 
 <script lang="ts">
 import { Component, Vue } from "vue-property-decorator";
 import DialogBox from "../DialogBox.vue";
+import LocationDetails from "../LocationDetails.vue";
 
 @Component({
   components: {
-    DialogBox
+    DialogBox,
+    LocationDetails
   }
 })
-export default class SplashScreen extends Vue {}
+export default class GameScreen extends Vue {
+
+    public selectedLocation: Location | null = null;
+    public selectionMade = false;
+
+    selectLocationHandler(location: Location){
+      this.selectedLocation = location;
+      this.selectionMade = true;
+    }
+
+    closeDetails() {
+      this.selectionMade = false;
+    }
+
+}
 </script>
 
 <style lang="scss">

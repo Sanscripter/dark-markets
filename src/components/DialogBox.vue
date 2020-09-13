@@ -1,38 +1,12 @@
 <template>
   <div class="horiz self-right" style="width:100vw;">
-    <!-- <div class="nes-container is-dark mugshot mt-50 weight-1">a square</div>     -->
     <div class="nes-container is-dark content dialog-container">
-      <table style="width: 100%">
-        <th></th>
-        <th></th>
-        <th></th>
-        <th></th>
-        <tbody>
-          <tr class="mb-3" v-for="agent in economy.agents" :key="agent.id">
-            <td>
-             {{agent.name}}
-            </td>
-            <td>
-              <p>Wallet Funds</p>
-              <p>${{agent.wallet.funds}}</p>
-            </td>
-            <td>
-              <p>Inventory</p>
-              <div class="horiz items-space-between" v-for="item in agent.inventory.items" :key="item.id">
-                <div class="weight-1 m-2">{{item.name}}</div>
-                <div class="weight-1">{{item.quantity}}</div>
-              </div>
-            </td>
-            <td>
-              <p>Needs</p>
-              <div class="horiz items-space-between" v-for="item in agent.needs.items" :key="item.id">
-                <div class="weight-1 m-2  ">{{item.item.name}}</div>
-                <div class="weight-1">{{item.item.quantity}}</div>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+
+      <ul style="width: 100%">
+        <li v-for="agent in economy.agents" :key="agent.id" >
+             <span @click="selectLocation(agent)">{{agent.name}}</span>
+        </li>
+      </ul>
       <div class="mt-50">
         <label>
           <input
@@ -40,13 +14,13 @@
             class="nes-radio is-dark"
             name="answer-dark"
             checked
-            v-on:click="append"
+            v-on:click="stepSimulation"
           />
-          <span>Start</span>
+          <span>Step</span>
         </label>
   
         <label>
-          <input type="radio" v-on:click="stepSimulation" class="nes-radio is-dark" name="answer-dark" />
+          <input type="radio"  class="nes-radio is-dark" name="answer-dark" />
           <span>About</span>
         </label>
       </div>
@@ -62,14 +36,19 @@ import { Component, Prop, Vue } from "vue-property-decorator";
 import Economy from '../game/classes/EconomySimulation';
 
 @Component
-export default class TitleSplash extends Vue {
+export default class DialogBox extends Vue {
   @Prop() private content?: string;
 
   public appendageOn = false;
+  public selectedLocation: Location | null = null;
   private economy = new Economy();
 
   append() {
     this.appendageOn = true;
+  }
+
+  selectLocation(location: Location){
+    this.$emit('selectLocation', location)
   }
 
   stepSimulation() {
