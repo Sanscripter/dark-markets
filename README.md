@@ -1,4 +1,6 @@
-# dark-markets
+# Dark Markets
+
+A simulated economy browser game inspired by Drugwars about trading commodities in an post-apocaliptic future.
 
 ## Project setup
 ```
@@ -15,7 +17,21 @@ npm run serve
 npm run build
 ```
 
-### Run your unit tests
-```
-npm run test:unit
-```
+### Checklist
+- [X] Agent Simulation-based Economy System (it's pretty ALPHA right now, I'm still debugging and the model is nowhere near complete. But cities do seem to trade so YAY!)
+- [ ] Debugging views (this will be developped as I progress with the above until I think it's sufficient.)
+- [ ] Player
+- [ ] Travelling 
+- [ ] Moving Agents 
+- [ ] Dynamic Agent Generation
+- [ ] Dynamic Item Generation (though, a lot of content will be hand inputed for tone-keeping purposes)
+- [ ] Daily cycles
+- [ ] Proper demand curves with conseques...
+- [ ] ... and proper market AI to exploit them
+- [ ] Map Screen
+- [ ] Trade Screen
+- [ ] Inventory Screen
+- [ ] Local save (transactions already persist locally, which is somewhat frustrating while debugging between rounds)
+- [ ] Intro
+- [ ] Visual Fluff (splash screen looks ok right now)
+
