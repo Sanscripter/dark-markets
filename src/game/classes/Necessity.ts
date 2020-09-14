@@ -7,7 +7,7 @@ export default class Necessity {
 
     constructor(item: Item, quantityNeeded?: number) {
         this.item = item;
-
+        console.log('item', item)
         if (quantityNeeded) {
             this.item.setQuantity(quantityNeeded);
         } else {

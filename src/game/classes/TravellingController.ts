@@ -15,14 +15,16 @@ export default class TravellingController {
     public activeLocation?: ILocation;
     public previousLocation?: ILocation;
 
-    public travel(destination:ILocation, callback: Function){
-        this.previousLocation = this.activeLocation;
-        this.timeController.dayPass(this.getTravelTime(destination));
-        this.activeLocation = destination;
-        callback();
-    }
+    // public travel(destination:ILocation, callback: Function){
+    //     this.previousLocation = this.activeLocation;
+    //     this.timeController.dayPass(this.getTravelTime(destination));
+    //     this.activeLocation = destination;
+    //     callback();
+    // }
 
-    public getTravelTime(destination:ILocation){
-        return this.world.locations.find((location:ILocation) => this.activeLocation?.name === location.name)?.travelTimes[destination.name];
-    }
+    // public getTravelTime(destination:ILocation){
+    //     return this.world.locations.find(
+    //         (location:ILocation) => this.activeLocation?.name === location.name)
+    //         ?.travelTimes[destination.name];
+    // }
 }

@@ -3,27 +3,22 @@
     <div class="nes-container is-dark content dialog-container">
       <div class="horiz">
         <div class="weight-4">
-          <p>{{location.name}}</p>
-          <p>Wallet Funds</p>
-          <p>${{location.wallet.funds}}</p>
-          <p>Inventory</p>
-          <div
-            class="horiz items-space-between"
-            v-for="item in location.inventory.items"
-            :key="item.id"
-          >
-            <div class="weight-1 m-2">{{item.name}}</div>
-            <div class="weight-1">{{item.quantity}}</div>
-          </div>
-          <p>Needs</p>
-          <div
-            class="horiz items-space-between"
-            v-for="item in location.needs.items"
-            :key="item.id"
-          >
-            <div class="weight-1 m-2">{{item.item.name}}</div>
-            <div class="weight-1">{{item.item.quantity}}</div>
-          </div>
+          <table>
+            <thead>
+              <th class="w-200">Buyer</th>
+              <th class="w-200">Seller</th>
+              <th class="w-200">Item</th>
+              <th class="w-200">Price</th>
+            </thead>
+            <tbody>
+              <tr v-for="transaction in transactions" :key="transaction.id">
+                <td>{{transaction.buyer.name}}</td>
+                <td>{{transaction.seller.name}}</td>
+                <td>{{transaction.item.name}}</td>
+                <td>{{transaction.price}}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <button class="self-start" @click="close">X</button>
@@ -33,11 +28,12 @@
 </template>
 
 <script lang="ts">
+import Transaction from '@/game/classes/Transactions';
 import { Component, Prop, Vue } from "vue-property-decorator";
 
 @Component
-export default class LocationDetails extends Vue {
-  @Prop() private location?: Location;
+export default class TransactionsLedger extends Vue {
+  @Prop() private transactions?: Transaction[];
 
   close() {
     this.$emit("close");

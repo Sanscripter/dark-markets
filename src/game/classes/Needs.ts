@@ -32,6 +32,7 @@ export default class Needs {
         console.log(`necessity new quantity`,this.items[necessity.getId()])
 
         if (!this.items[necessity.getId()].getQuantity()) {
+            console.log('removing item from needs', necessity )
             delete this.items[necessity.getId()];
         }
         this.cleanup();
@@ -39,6 +40,10 @@ export default class Needs {
     }
 
     hasNecessity(necessity: Necessity) {
+        if(!necessity){
+            console.log('necessity came undefined or null', necessity);
+            return necessity;
+        }
         return this.items[necessity.getId()];
     }
 

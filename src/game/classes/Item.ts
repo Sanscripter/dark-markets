@@ -13,9 +13,7 @@ export default class Item extends UniqueElement {
     }
     
     setQuantity(quantity: number) {
-        console.log(`Qty`,quantity)
-        console.log(`Comparison`,100 < 0)
-        if (100 < 0) {
+        if (quantity < 0) {
             this.quantity = 0;
             return;
         }

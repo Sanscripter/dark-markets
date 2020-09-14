@@ -2,13 +2,14 @@ import IPlayer from '../interfaces/IPlayer';
 import ILocation from '../interfaces/ILocation';
 import Item from './Item';
 import Agent from './Agent';
+import Transaction from './Transactions';
 
 
 
 //TODO: dialog mechanic and survival mechanic
 export default class Economy {
-    agents: Agent[] = [];  //review
-    availableItems: Item[] = [];
+    agents: Agent[] = [];
+    availableItems: Item[] = []; //review
     self = this;
     // availableItems: Inventory = new Inventory();
 
@@ -25,7 +26,7 @@ export default class Economy {
         [key: string]: string[]
     } = {};
 
-    transactions = [];
+    transactions: Transaction[] = [];
 
 
 
@@ -37,7 +38,8 @@ export default class Economy {
     step() {
         this.produce();
         this.trade();
-        console.table(this.agents);
+        this.transactions.map(t => t.log());
+        console.log(this.transactions);
     }
 
     updatePromote(self: Economy) {
@@ -93,13 +95,19 @@ export default class Economy {
                 canSupply.forEach((suppliable) => {
                     let demand = agent.needs.getNecessity(suppliable);
                     let supply = this.agents[matchSellerIndex].offers.getProduct(suppliable);
-                    if (!demand || !supply || demand.getBid() < supply.getAsk()) {
+                    if (!demand || !supply || demand.getBid() < supply.getAsk() || demand.getBid() > agent.wallet.getFunds()) {
                         return;
                     }
                     supply.setAsk(demand.getBid());
                     agent.buy(supply, this.updatePromote(this)) // read above.
                     this.agents[matchSellerIndex].sell(demand, this.updatePromote(this));
-                    console.log(`${agent.name} has bought ${supply.getName()} from ${this.agents[matchSellerIndex].name} for ${demand.getBid()}`)
+                    let transaction = new Transaction(
+                        agent,
+                        this.agents[matchSellerIndex],
+                        demand.getItem(),
+                        supply.getAsk()
+                    );
+                    this.transactions.push(transaction);
                 });
             });
         });

@@ -6,16 +6,24 @@ export default class Inventory {
     } = {};
 
     add(item: Item) {
-        //If we have to create a new item, we'll return it whole, if it's just stackign quantities, we'll return the qty
+        console.log(`Adding item ${item.getQuantity()} - ${item.name} to  inventory`, item)
         if (!this.hasItem(item)) {
+            console.log(`new item!`)
+
             this.items[item.id] = item;
+            console.log(`item in inventory ${this.items[item.id].getQuantity()} ${this.items[item.id].name}`, this.items[item.id])
             return this.items[item.id];
         }
+
+        console.log(`Existing item, just new units.`)
+        console.log(`Current amount: ${this.items[item.id].getQuantity()}`)
         //@ts-ignore
         const newQty = this.items[item.id].getQuantity() + item.getQuantity();
+        console.log(`New item quantity ${newQty}`)
         this.items[item.id].setQuantity(newQty);
+        console.log(`Check New item quantity ${this.items[item.id].getQuantity()}`)
         this.cleanup();
-        return this.items[item.id].getQuantity();
+        return this.items[item.id];
     }
 
     remove(item: Item) {
@@ -37,6 +45,10 @@ export default class Inventory {
     }
 
     hasItem(item: Item) {
+        if(!item) {
+            console.log('undefined or null item', item)
+            return item;
+        }
         return this.items[item.id];
     }
 

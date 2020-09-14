@@ -19,11 +19,21 @@ export default class Agent extends UniqueElement {
         this.name = name;
     }
 
+    resourceCurve(item: Item){
+        return item.getQuantity() < 2; //for items this agent posses, a need will only arise when there is less than 2 items (mock, ideally different resources would have different levels of necessities for different agents)
+    }
+
     createNeeds(needPossibilities: Item[]) { //doublecheck
-        let baseItem = needPossibilities[Math.floor(needPossibilities.length * Math.random())];
-        // while(this.inventory.hasItem(baseItem)){
-        //     baseItem = needPossibilities[Math.floor(needPossibilities.length * Math.random())];
-        // }
+        let resourcesDemanded = needPossibilities.filter((item) => {
+            if(this.inventory.getItem(item.id)){
+                return this.resourceCurve(this.inventory.getItem(item.id))
+            }
+            return true;
+        });
+        if(!resourcesDemanded.length) {
+            return;
+        }
+        let baseItem = resourcesDemanded[Math.floor(resourcesDemanded.length * Math.random())]; /// will ask just one of the needed items at a time
         const newNeed = new Necessity(baseItem);
         newNeed.setBid(Math.ceil(Math.random() * 100) + 1); //doublecheck
         newNeed.setQuantity(5) // doublecheck
@@ -34,8 +44,9 @@ export default class Agent extends UniqueElement {
         const productionResult = productionPosibilities[Math.floor(productionPosibilities.length * Math.random())]; //doublecheck
         const gennedNumber = Math.ceil(Math.random() * 100) + 1;
         productionResult.setQuantity(gennedNumber);
-        console.log('Produced', productionResult);
-        console.log(`genned number`, gennedNumber)
+        console.log('City', this.name);
+        console.log('Produced', gennedNumber , productionResult);
+        console.log(`${productionResult.name} - qty ${productionResult.getQuantity()}`)        
         this.inventory.add(productionResult);
         this.syncNeeds();
         this.syncOffers();
