@@ -1,59 +1,59 @@
-import Inventory from './Inventory';
-import Item from './Item';
-import Necessity from './Necessity';
-import Needs from './Needs';
-import Offers from './Offers';
-import Product from './Product';
+import Inventory from './qualifiedCollections/Inventory';
+import Item from './qualifiedCollections/qualifiedItems/Item';
+import Necessity from './qualifiedCollections/qualifiedItems/Necessity';
+import Needs from './qualifiedCollections/Needs';
+import Offers from './qualifiedCollections/Offers';
+import Product from './qualifiedCollections/qualifiedItems/Product';
 import UniqueElement from './UniqueElement';
 import Wallet from './Wallet';
 
 export default class Agent extends UniqueElement {
-    name: string;
+ 
+    name = '';
     wallet: Wallet = new Wallet();
     inventory: Inventory = new Inventory();
     offers: Offers = new Offers();
     needs: Needs = new Needs();
 
-    constructor(name: string) {
-        super(name);
-        this.name = name;
+    constructor(init?: Partial<Agent>) {
+        super(init?.name || '');
+        Object.assign(this, init);
     }
 
-    resourceCurve(item: Item){
+    resourceCurve(item: Item) {
         return item.getQuantity() < 2; //for items this agent posses, a need will only arise when there is less than 2 items (mock, ideally different resources would have different levels of necessities for different agents)
     }
 
     createNeeds(needPossibilities: Item[]) { //doublecheck
-        let resourcesDemanded = needPossibilities.filter((item) => {
-            if(this.inventory.getItem(item.id)){
-                return this.resourceCurve(this.inventory.getItem(item.id))
+        const resourcesDemanded = needPossibilities.filter((item) => {
+            const resource = this.inventory.getItem(item.id)
+            if (resource) {
+                return this.resourceCurve(resource);
             }
             return true;
         });
-        if(!resourcesDemanded.length) {
+        if (!resourcesDemanded.length) {
             return;
         }
-        let baseItem = resourcesDemanded[Math.floor(resourcesDemanded.length * Math.random())]; /// will ask just one of the needed items at a time
-        const newNeed = new Necessity(baseItem);
-        newNeed.setBid(Math.ceil(Math.random() * 100) + 1); //doublecheck
-        newNeed.setQuantity(5) // doublecheck
+        const baseItem = resourcesDemanded[Math.floor(resourcesDemanded.length * Math.random())]; /// will ask just one of the needed items at a time
+        const initItem = {... baseItem};
+        const newNeed = new Necessity(new Item(initItem));
+        newNeed.setNeedScore(this.determineNeedScore());
+        newNeed.setBid(this.determineNecessityBid(newNeed));
+        newNeed.setQuantity(this.determineNecessityQuantity(newNeed));
         this.needs.add(newNeed);
     }
 
-    produce(productionPosibilities: Item[], callback?: Function) {
+    produce(productionPosibilities: Item[]) {
         const productionResult = productionPosibilities[Math.floor(productionPosibilities.length * Math.random())]; //doublecheck
         const gennedNumber = Math.ceil(Math.random() * 100) + 1;
-        productionResult.setQuantity(gennedNumber);
-        console.log('City', this.name);
-        console.log('Produced', gennedNumber , productionResult);
-        console.log(`${productionResult.name} - qty ${productionResult.getQuantity()}`)        
-        this.inventory.add(productionResult);
-        this.syncNeeds();
-        this.syncOffers();
-        if (!callback) {
-            return;
+        if (gennedNumber > 0) {
+            const item = new Item({... productionResult}); 
+            item.setQuantity(gennedNumber);
+            this.inventory.add(item);
+            this.syncNeeds();
+            this.syncOffers();
         }
-        callback(this);
     }
 
     buy(product: Product, callback?: Function) {
@@ -65,12 +65,15 @@ export default class Agent extends UniqueElement {
 
     sell(necessity: Necessity, callback?: Function) {
         this.removeInventory(necessity.getItem(), callback);
+        this.syncNeeds();
         this.syncOffers();
         this.updateWallet(necessity.getBid());
     }
 
     addInventory(item: Item, callback?: Function) {
-        this.inventory.add(item);
+        if (item.getQuantity() > 0) {
+            this.inventory.add(item);
+        }
         if (!callback) {
             return;
         }
@@ -79,6 +82,7 @@ export default class Agent extends UniqueElement {
 
     removeInventory(item: Item, callback?: Function) {
         this.inventory.remove(item);
+        this.inventory.cleanup();
         if (!callback) {
             return;
         }
@@ -91,46 +95,44 @@ export default class Agent extends UniqueElement {
     }
 
     syncNeeds() { //doublecheck
-        console.log(`Syncing needs`)
-        const inventoryIds = Object.keys(this.inventory.items);
-        const needsIds = Object.keys(this.needs.items);
-        const diffRemove = needsIds.filter(item => inventoryIds.includes(item));
+        const inventoryIds = this.inventory.getPossessions();
+        const needsIds = this.needs.getNeeds();
+        const diffRemove = needsIds.filter(need => !inventoryIds.includes(need));
         if (!diffRemove.length) {
             return;
         }
+
         diffRemove.map((diffItem) => {
-            let item = this.inventory.getItem(diffItem);
+            const item = this.inventory.getItem(diffItem);
             if (!item) {
                 return;
             }
 
-            let necessity = this.needs.hasNecessity(new Necessity(item));
-            if (!necessity) {
+            const indx = this.needs.hasNecessity(new Necessity(new Item({... item})));
+            if (indx < 0) {
                 return;
             }
-
-            if (necessity.getQuantity() > item.getQuantity()) {
-                necessity.setQuantity(item.getQuantity());
+            const necessity = this.needs.getNecessity(item.id);
+            if (necessity && necessity.getQuantity() > item.getQuantity()) {
+                necessity.setQuantity(necessity.getQuantity() - item.getQuantity());
             }
-            console.log(`Removing necessity`,necessity);
-            this.needs.remove(necessity);
+            this.needs.cleanup();
         })
     }
 
     syncOffers() { // doublecheck
-        const inventoryIds = Object.keys(this.inventory.items);
-        const offersIds = Object.keys(this.offers.products);
+        const inventoryIds = this.inventory.getPossessions();
+        const offersIds = this.offers.getProducts();
         const diffAdd = inventoryIds.filter(item => !offersIds.includes(item));
         if (!diffAdd.length) {
             return;
         }
         diffAdd.map((diffItem) => {
-            let item = this.inventory.getItem(diffItem);
+            const item = this.inventory.getItem(diffItem);
             if (!item) {
                 return;
             }
-            let product = new Product(item);
-
+            const product = new Product(new Item({... item}));
             product.setAsk(this.determineProductAsk(product) + 30); //doublecheck
             this.offers.add(product);
         })
@@ -140,7 +142,7 @@ export default class Agent extends UniqueElement {
             return;
         }
         diffRemove.map((diffItem) => {
-            let product = this.offers.getProduct(diffItem);
+            const product = this.offers.getProduct(diffItem);
             if (!product) {
                 return;
             }
@@ -148,19 +150,27 @@ export default class Agent extends UniqueElement {
         })
     }
 
+    hasOffers() {
+       return this.offers.products;
+    }
+
+    hasNeeds() {
+       return this.needs.necessities;
+    }
+
     determineProductAsk(product: Product) {
         return product.getQuantity() * Math.ceil(Math.random() * 10); // doublecheck
     }
 
     determineNecessityBid(necessity: Necessity) {
-        return necessity.getQuantity() * Math.ceil(Math.random() * 1000); // doublecheck
+        return necessity.getQuantity() * Math.ceil(Math.random() * 1000000); // doublecheck
     }
 
-    determineNecessityScore(necessity: Necessity) {
-        return Math.ceil(1000 * Math.random()); //doublecheck
+    determineNeedScore() {
+        return Math.ceil(100 * Math.random()); //should be a function of the nodes consumption profile
     }
 
     determineNecessityQuantity(necessity: Necessity) {
-        return Math.ceil(necessity.getNeedScore() * Math.random()); //doublecheck
+        return Math.ceil(necessity.getNeedScore() * Math.random() * 5); //doublecheck
     }
 }

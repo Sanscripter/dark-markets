@@ -1,21 +1,18 @@
 import Agent from './Agent';
-import Item from './Item';
+import Item from './qualifiedCollections/qualifiedItems/Item';
 import UniqueElement from './UniqueElement';
 
 export default class Transaction extends UniqueElement{
-    constructor(buyer: Agent, seller: Agent, item: Item, price:number, day?: number){
-        super(`${buyer}-${seller}I${item.name}$${price}T${new Date().toISOString()}`)
-        this.buyer = buyer;
-        this.seller = seller;
-        this.item = item;
-        this.price = price;
+    constructor(init?: Partial<Transaction>) {
+        super(`${init?.buyer}-${init?.seller}I${init?.item?.name}$${init?.price}T${init?.day}`)
+        Object.assign(this, init);
     }
     
-    buyer: Agent;
-    seller: Agent;
-    item: Item;
-    price: number;
-    day: number = 0;
+    buyer = new Agent({});
+    seller = new Agent({});
+    item = new Item();
+    price = 0;
+    day = 0;
 
     log(){
         console.log(`${this.buyer.name} has bought ${this.item.name} from ${this.seller.name} for ${this.price}`)

@@ -1,6 +1,4 @@
-# Dark Markets
-
-A simulated economy browser game inspired by Drugwars about trading commodities in an post-apocaliptic future.
+# dark-markets
 
 ## Project setup
 ```
@@ -23,7 +21,7 @@ npm run build
 - [ ] Player
 - [ ] Travelling 
 - [ ] Moving Agents 
-- [ ] Dynamic Agent Generation
+- [ ] Dynamic Agent Generation 
 - [ ] Dynamic Item Generation (though, a lot of content will be hand inputed for tone-keeping purposes)
 - [ ] Daily cycles
 - [ ] Proper demand curves with conseques...
@@ -31,7 +29,6 @@ npm run build
 - [ ] Map Screen
 - [ ] Trade Screen
 - [ ] Inventory Screen
-- [ ] Local save (transactions already persist locally, which is somewhat frustrating while debugging between rounds)
+- [ ] Local save
 - [ ] Intro
 - [ ] Visual Fluff (splash screen looks ok right now)
-

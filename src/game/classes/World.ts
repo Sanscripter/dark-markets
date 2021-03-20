@@ -1,4 +1,4 @@
-import ILocation from '../interfaces/ILocation';
+import ILocation from './interfaces/ILocation';
 
 export default class World {
     
